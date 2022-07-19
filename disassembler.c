@@ -1,7 +1,10 @@
+#define _POSIX_C_SOURCE 1
 #include <error.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 typedef struct {
   const char* instruction;
@@ -16,7 +19,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "NOP";
       break;
     case 0x01:
-      op.instruction = "LXI\tB,%2x%2x";
+      op.instruction = "LXI\tB,%02x%02x";
       op.size = 3;
       break;
     case 0x02:
@@ -32,7 +35,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DCR\tB";
       break;
     case 0x06:
-      op.instruction = "MVI\tB,%2x";
+      op.instruction = "MVI\tB,%02x";
       op.size = 2;
       break;
     case 0x07:
@@ -56,7 +59,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DCR\tC";
       break;
     case 0x0E:
-      op.instruction = "MVI\tC,%2x";
+      op.instruction = "MVI\tC,%02x";
       op.size = 2;
       break;
     case 0x0F:
@@ -66,7 +69,7 @@ Op Disassemble(uint8_t opcode) {
     case 0x10:
       break;
     case 0x11:
-      op.instruction = "LXI\tD,%2x%2x";
+      op.instruction = "LXI\tD,%02x%02x";
       op.size = 3;
       break;
     case 0x12:
@@ -82,7 +85,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DCR\tD";
       break;
     case 0x16:
-      op.instruction = "MVI\tD,%2x";
+      op.instruction = "MVI\tD,%02x";
       op.size = 2;
       break;
     case 0x17:
@@ -107,7 +110,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DCR\tE";
       break;
     case 0x1e:
-      op.instruction = "MVI\tE,%2x";
+      op.instruction = "MVI\tE,%02x";
       op.size = 2;
       break;
     case 0x1f:
@@ -120,11 +123,11 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "RIM";
       break;
     case 0x21:
-      op.instruction = "LXI\tH,%2x%2x";
+      op.instruction = "LXI\tH,%02x%02x";
       op.size = 3;
       break;
     case 0x22:
-      op.instruction = "SHLD\t%2x%2x";
+      op.instruction = "SHLD\t%02x%02x";
       op.size = 3;
       break;
     case 0x23:
@@ -137,7 +140,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DCR\tH";
       break;
     case 0x26:
-      op.instruction = "MVI\tH,%2x";
+      op.instruction = "MVI\tH,%02x";
       op.size = 2;
       break;
     case 0x27:
@@ -150,7 +153,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DAD\tH";
       break;
     case 0x2a:
-      op.instruction = "LHLD\t%2x%2x";
+      op.instruction = "LHLD\t%02x%02x";
       op.size = 3;
       break;
     case 0x2b:
@@ -163,7 +166,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DCR\tL";
       break;
     case 0x2e:
-      op.instruction = "MVI\tL,%2x";
+      op.instruction = "MVI\tL,%02x";
       op.size = 2;
       break;
     case 0x2f:
@@ -177,11 +180,11 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "SIM";
       break;
     case 0x31:
-      op.instruction = "LXI\tSP,%2x%2x";
+      op.instruction = "LXI\tSP,%02x%02x";
       op.size = 3;
       break;
     case 0x32:
-      op.instruction = "STA\t%2x%2x";
+      op.instruction = "STA\t%02x%02x";
       op.size = 3;
       break;
     case 0x33:
@@ -194,7 +197,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DCR\tM";
       break;
     case 0x36:
-      op.instruction = "MVI\tM,%2x";
+      op.instruction = "MVI\tM,%02x";
       op.size = 2;
       break;
     case 0x37:
@@ -207,7 +210,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DAD\tSP";
       break;
     case 0x3a:
-      op.instruction = "LDA\t%2x%2x";
+      op.instruction = "LDA\t%02x%02x";
       op.size = 3;
       break;
     case 0x3b:
@@ -220,7 +223,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "DCR\tA";
       break;
     case 0x3e:
-      op.instruction = "MVI\tA,%2x";
+      op.instruction = "MVI\tA,%02x";
       op.size = 2;
       break;
     case 0x3f:
@@ -629,16 +632,16 @@ Op Disassemble(uint8_t opcode) {
       break;
     case 0xc2:
       /* jump if not zero */
-      op.instruction = "JNZ\t%2x%2x";
+      op.instruction = "JNZ\t%02x%02x";
       op.size = 3;
       break;
     case 0xc3:
-      op.instruction = "JMP\t%2x%2x";
+      op.instruction = "JMP\t%02x%02x";
       op.size = 3;
       break;
     case 0xc4:
       /* call if not zero */
-      op.instruction = "CNZ\t%2x%2x";
+      op.instruction = "CNZ\t%02x%02x";
       op.size = 3;
       break;
     case 0xc5:
@@ -646,7 +649,7 @@ Op Disassemble(uint8_t opcode) {
       break;
     case 0xc6:
       /* immediate add */
-      op.instruction = "ADI\t%2x";
+      op.instruction = "ADI\t%02x";
       op.size = 2;
       break;
     case 0xc7:
@@ -661,22 +664,22 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "RET";
       break;
     case 0xca:
-      op.instruction = "JZ\t%2x%2x";
+      op.instruction = "JZ\t%02x%02x";
       op.size = 3;
       break;
     case 0xcb:
       /* blank instruction */
       break;
     case 0xcc:
-      op.instruction = "CZ\t%2x%2x";
+      op.instruction = "CZ\t%02x%02x";
       op.size = 3;
       break;
     case 0xcd:
-      op.instruction = "CALL\t%2x%2x";
+      op.instruction = "CALL\t%02x%02x";
       op.size = 3;
       break;
     case 0xce:
-      op.instruction = "ACI\t%2x";
+      op.instruction = "ACI\t%02x";
       op.size = 2;
       break;
     case 0xcf:
@@ -691,17 +694,17 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "POP\tD";
       break;
     case 0xd2:
-      op.instruction = "JNC\t%2x%2x";
+      op.instruction = "JNC\t%02x%02x";
       op.size = 3;
       break;
     case 0xd3:
       /* send contents of Accumulator to Output Device #{Byte} */
-      op.instruction = "OUT\t%2x";
+      op.instruction = "OUT\t%02x";
       op.size = 2;
       break;
     case 0xd4:
       /* if no carry, call */
-      op.instruction = "CNC\t%2x%2x";
+      op.instruction = "CNC\t%02x%02x";
       op.size = 3;
       break;
     case 0xd5:
@@ -709,7 +712,7 @@ Op Disassemble(uint8_t opcode) {
       break;
     case 0xd6:
       /* immediate subtract */
-      op.instruction = "SUI\t%2x";
+      op.instruction = "SUI\t%02x";
       op.size = 2;
       break;
     case 0xd7:
@@ -723,16 +726,16 @@ Op Disassemble(uint8_t opcode) {
       /* blank instruction */
       break;
     case 0xda:
-      op.instruction = "JC\t%2x%2x";
+      op.instruction = "JC\t%02x%02x";
       op.size = 3;
       break;
     case 0xdb:
       /* read 8 bits of data from Input Device ${Byte} into Accumulator */
-      op.instruction = "IN\t%2x";
+      op.instruction = "IN\t%02x";
       op.size = 2;
       break;
     case 0xdc:
-      op.instruction = "CC\t%2x%2x";
+      op.instruction = "CC\t%02x%02x";
       op.size = 3;
       break;
     case 0xdd:
@@ -740,7 +743,7 @@ Op Disassemble(uint8_t opcode) {
       break;
     case 0xde:
       /* immediate subtraction with carry */
-      op.instruction = "SBI\t%2x";
+      op.instruction = "SBI\t%02x";
       op.size = 2;
       break;
     case 0xdf:
@@ -754,7 +757,7 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "POP\tH";
       break;
     case 0xe2:
-      op.instruction = "JPO\t%2x%2x";
+      op.instruction = "JPO\t%02x%02x";
       op.size = 3;
       break;
     case 0xe3:
@@ -762,14 +765,14 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "XTHL";
       break;
     case 0xe4:
-      op.instruction = "CPO\t%2x%2x";
+      op.instruction = "CPO\t%02x%02x";
       op.size = 3;
       break;
     case 0xe5:
       op.instruction = "PUSH\tH";
       break;
     case 0xe6:
-      op.instruction = "ANI\t%2x";
+      op.instruction = "ANI\t%02x";
       op.size = 2;
       break;
     case 0xe7:
@@ -782,14 +785,14 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "PCHL";
       break;
     case 0xea:
-      op.instruction = "JPE\t%2x%2x";
+      op.instruction = "JPE\t%02x%02x";
       op.size = 3;
       break;
     case 0xeb:
       op.instruction = "XCHG";
       break;
     case 0xec:
-      op.instruction = "CPE\t%2x%2x";
+      op.instruction = "CPE\t%02x%02x";
       op.size = 3;
       break;
     case 0xed:
@@ -797,7 +800,7 @@ Op Disassemble(uint8_t opcode) {
       break;
     case 0xee:
       /* immediate xor */
-      op.instruction = "XRI\t%2x";
+      op.instruction = "XRI\t%02x";
       op.size = 2;
       break;
     case 0xef:
@@ -812,14 +815,14 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "POP\tPSW";
       break;
     case 0xf2:
-      op.instruction = "JP\t%2x%2x";
+      op.instruction = "JP\t%02x%02x";
       op.size = 3;
       break;
     case 0xf3:
       op.instruction = "DI";
       break;
     case 0xf4:
-      op.instruction = "CP\t%2x%2x";
+      op.instruction = "CP\t%02x%02x";
       op.size = 3;
       break;
     case 0xf5:
@@ -827,7 +830,7 @@ Op Disassemble(uint8_t opcode) {
       break;
     case 0xf6:
       /* immediate or */
-      op.instruction = "ORI\t%2x";
+      op.instruction = "ORI\t%02x";
       op.size = 2;
       break;
     case 0xf7:
@@ -841,21 +844,21 @@ Op Disassemble(uint8_t opcode) {
       op.instruction = "SPHL";
       break;
     case 0xfa:
-      op.instruction = "JM\t%2x%2x";
+      op.instruction = "JM\t%02x%02x";
       op.size = 3;
       break;
     case 0xfb:
       op.instruction = "EI";
       break;
     case 0xfc:
-      op.instruction = "CM\t%2x%2x";
+      op.instruction = "CM\t%02x%02x";
       op.size = 3;
       break;
     case 0xfd:
       /* blank instruction */
       break;
     case 0xfe:
-      op.instruction = "CPI\t%2x";
+      op.instruction = "CPI\t%02x";
       break;
     case 0xff:
       op.instruction = "RST\t7";
@@ -867,29 +870,70 @@ Op Disassemble(uint8_t opcode) {
 #define BUF_SIZE 10000
 int main(int argc, char** argv)
 {
-  argv++;
-  char buf[BUF_SIZE];
+  char* program_name = *argv++;
   if (argc < 2) {
-    error(1, 0, "missing arg");
-    return EXIT_FAILURE;
+    fprintf(stderr, "%s: missing argument\n", program_name);
+    exit(EXIT_FAILURE);
   }
   if (argc > 2) {
-    error(1, 0, "too many arguments");
-    return EXIT_FAILURE;
+    fprintf(stderr, "%s: too many arguments\n", program_name);
+    exit(EXIT_FAILURE);
   }
   FILE* asmb = fopen(*argv, "r");
   if (!asmb) {
     perror("fopen");
-    return EXIT_FAILURE;
+    exit(EXIT_FAILURE);
   }
-  fread(buf, sizeof(char), BUF_SIZE, asmb);
+  struct stat sb;
+  if (fstat(fileno(asmb), &sb) == -1) {
+    perror("fstat");
+    exit(EXIT_FAILURE);
+  }
+  /* allocate a string big enough to fit the entire file */
+  uint8_t* buf = malloc(sb.st_size);
+  fread(buf, sizeof(uint8_t), sb.st_size, asmb);
   if (ferror(asmb)) {
     perror("fread");
-    return EXIT_FAILURE;
+    exit(EXIT_FAILURE);
   }
+  /* buffer is now full; file is read */
+  /* file can now be closed */
   fclose(asmb);
-  return EXIT_SUCCESS;
-  /* Loop through the buffer byte by byte
-   * match each byte with an op code
-   * */
+
+  /* now it's time to do our disassembly */
+  uint8_t* bufp = buf;
+  while (bufp - buf < sb.st_size) {
+    Op op = Disassemble(*bufp);
+    uint8_t a, b;
+    switch (op.size) {
+      case 1:
+        printf("%s", op.instruction);
+        break;
+      case 2:
+        if ((bufp + 1) - buf >= sb.st_size) {
+          goto malformed_error;
+        }
+        a = *++bufp;
+        printf(op.instruction, a);
+        break;
+      case 3:
+        if ((bufp + 2) - buf >= sb.st_size) {
+          goto malformed_error;
+        }
+        a = *++bufp;
+        b = *++bufp;
+        printf(op.instruction, a, b);
+        break;
+    }
+    printf("\n");
+    ++bufp;
+  }
+
+  free(buf);
+  exit(EXIT_SUCCESS);
+
+malformed_error:
+  fprintf(stderr, "%s: malformed bytecode at byte 0x%lx\n", program_name, bufp - buf);
+  fprintf(stderr, "%s: aborting disassembly\n", program_name);
+  exit(EXIT_FAILURE);
 }
