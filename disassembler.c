@@ -869,6 +869,7 @@ Op Disassemble(uint8_t opcode) {
             break;
         case 0xfe:
             op.instruction = "CPI\t%02x";
+            op.size = 2;
             break;
         case 0xff:
             op.instruction = "RST\t7";
