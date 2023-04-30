@@ -877,21 +877,38 @@ Op Disassemble(uint8_t opcode) {
 }
 
 #define MEM_SIZE 0x10000
-
+uint8_t memory[MEM_SIZE];
 int main(int argc, char** argv)
 {
     const char* program_name = argv[0];
     static struct option const long_options[] = {
             {"offset", required_argument, NULL, 'f'},
+            {"jump", required_argument, NULL, 'j'},
             {"version", no_argument, NULL, 'v'},
             {"help", no_argument, NULL, 'h'},
             {NULL, 0, NULL, 0},
     };
     int c;
     size_t offset = 0;
+    size_t jump = 0;
     FILE *output = stdout;
-    while ((c = getopt_long(argc, argv, "vhf:o:", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "vhj:f:o:", long_options, NULL)) != -1) {
         switch (c) {
+            /* "jump" to a disassembly point */
+            case 'j':
+                errno = 0;
+                jump = strtol(optarg, NULL, 0);
+                /* handle overflow etc */
+                if (errno) {
+                    perror("strtol");
+                    return errno;
+                }
+                /* handle valid long but too short for memory */
+                if (jump >= MEM_SIZE) {
+                    fprintf(stderr, "%s: jump point is bigger than the cpu memory\n", program_name);
+                    return EXIT_FAILURE;
+                }
+                break;
             /* specify output file */
             case 'o':
                 output = fopen(optarg, "w+b");
@@ -915,7 +932,14 @@ int main(int argc, char** argv)
                     return EXIT_FAILURE;
                 }
                 break;
+            default:
+                break;
         }
+    }
+    /* handle combination of jump and offset */
+    if (jump + offset >= MEM_SIZE) {
+        fprintf(stderr, "%s: start point is bigger than the cpu memory\n", program_name);
+        return EXIT_FAILURE;
     }
     if (optind >= argc) {
         fprintf(stderr, "%s: expected arguments\n", program_name);
@@ -936,10 +960,14 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
     const size_t bytes_read = ftell(asmb);
+    if (bytes_read >= MEM_SIZE) {
+        fprintf(stderr, "%s: file size %lu is bigger than the cpu memory", program_name, bytes_read);
+    }
     rewind(asmb);
-    /* allocate a string big enough to fit the entire file */
-    uint8_t* buf = malloc(bytes_read);
-    fread(buf, 1, bytes_read, asmb);
+
+    /* read file into memory */
+    uint8_t* bufp = memory + offset;
+    fread(bufp, 1, bytes_read, asmb);
     if (ferror(asmb)) {
         perror("fread");
         exit(EXIT_FAILURE);
@@ -949,10 +977,8 @@ int main(int argc, char** argv)
     fclose(asmb);
 
     /* now it's time to do our disassembly */
-    uint8_t* bufp = buf + offset;
-    size_t count;
-    while ((count = bufp - buf) < bytes_read) {
-        Op op = Disassemble(*bufp);
+    for (size_t count = offset + jump; count < bytes_read; ++count) {
+        Op op = Disassemble(memory[count]);
         uint8_t a, b;
         /* count the current hex byte */
         fprintf(output, "%04lx: ", count);
@@ -961,22 +987,20 @@ int main(int argc, char** argv)
                 fprintf(output, "%s", op.instruction);
                 break;
             case 2:
-                a = *++bufp;
+                a = memory[++count];
                 fprintf(output, op.instruction, a);
                 break;
             case 3:
-                a = *++bufp;
-                b = *++bufp;
+                a = memory[++count];
+                b = memory[++count];
                 fprintf(output, op.instruction, a, b);
                 break;
         }
         fprintf(output, "\n");
-        ++bufp;
     }
 
     if (output != stdout)
         fclose(output);
 
-    free(buf);
     exit(EXIT_SUCCESS);
 }
