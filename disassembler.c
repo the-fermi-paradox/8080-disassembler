@@ -1,10 +1,8 @@
-#define _POSIX_C_SOURCE 1
-#include <error.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <getopt.h>
 
 typedef struct {
     const char* instruction;
@@ -878,31 +876,70 @@ Op Disassemble(uint8_t opcode) {
     return op;
 }
 
-#define BUF_SIZE 10000
+#define MEM_SIZE 0x10000
+
 int main(int argc, char** argv)
 {
-    char* program_name = *argv++;
-    if (argc < 2) {
-        fprintf(stderr, "%s: missing argument\n", program_name);
-        exit(EXIT_FAILURE);
+    const char* program_name = argv[0];
+    static struct option const long_options[] = {
+            {"offset", required_argument, NULL, 'f'},
+            {"version", no_argument, NULL, 'v'},
+            {"help", no_argument, NULL, 'h'},
+            {NULL, 0, NULL, 0},
+    };
+    int c;
+    size_t offset = 0;
+    FILE *output = stdout;
+    while ((c = getopt_long(argc, argv, "vhf:o:", long_options, NULL)) != -1) {
+        switch (c) {
+            /* specify output file */
+            case 'o':
+                output = fopen(optarg, "w+b");
+                if (!output) {
+                    perror("fopen");
+                    return errno;
+                }
+                break;
+            /* specify offset */
+            case 'f':
+                errno = 0;
+                offset = strtol(optarg, NULL, 0);
+                /* handle overflow etc */
+                if (errno) {
+                    perror("strtol");
+                    return errno;
+                }
+                /* handle valid long but too short for memory */
+                if (offset >= MEM_SIZE) {
+                    fprintf(stderr, "%s: offset %s is bigger than the cpu memory\n", program_name, optarg);
+                    return EXIT_FAILURE;
+                }
+                break;
+        }
     }
-    if (argc > 2) {
+    if (optind >= argc) {
+        fprintf(stderr, "%s: expected arguments\n", program_name);
+        return EXIT_FAILURE;
+    }
+    if (argc - optind > 1) {
         fprintf(stderr, "%s: too many arguments\n", program_name);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
-    FILE* asmb = fopen(*argv, "r");
+    FILE* asmb = fopen(argv[optind], "r");
     if (!asmb) {
         perror("fopen");
         exit(EXIT_FAILURE);
     }
-    struct stat sb;
-    if (fstat(fileno(asmb), &sb) == -1) {
-        perror("fstat");
+
+    if (fseek(asmb, 0L, SEEK_END) == EOF) {
+        perror("fseek");
         exit(EXIT_FAILURE);
     }
+    const size_t bytes_read = ftell(asmb);
+    rewind(asmb);
     /* allocate a string big enough to fit the entire file */
-    uint8_t* buf = malloc(sb.st_size);
-    fread(buf, 1, sb.st_size, asmb);
+    uint8_t* buf = malloc(bytes_read);
+    fread(buf, 1, bytes_read, asmb);
     if (ferror(asmb)) {
         perror("fread");
         exit(EXIT_FAILURE);
@@ -912,42 +949,34 @@ int main(int argc, char** argv)
     fclose(asmb);
 
     /* now it's time to do our disassembly */
-    uint8_t* bufp = buf;
+    uint8_t* bufp = buf + offset;
     size_t count;
-    while ((count = bufp - buf) < sb.st_size) {
+    while ((count = bufp - buf) < bytes_read) {
         Op op = Disassemble(*bufp);
         uint8_t a, b;
         /* count the current hex byte */
-        printf("%04lx: ", count);
+        fprintf(output, "%04lx: ", count);
         switch (op.size) {
             case 1:
-                printf("%s", op.instruction);
+                fprintf(output, "%s", op.instruction);
                 break;
             case 2:
-                if (count + 1 >= sb.st_size) {
-                    goto malformed_error;
-                }
                 a = *++bufp;
-                printf(op.instruction, a);
+                fprintf(output, op.instruction, a);
                 break;
             case 3:
-                if (count + 2 >= sb.st_size) {
-                    goto malformed_error;
-                }
                 a = *++bufp;
                 b = *++bufp;
-                printf(op.instruction, a, b);
+                fprintf(output, op.instruction, a, b);
                 break;
         }
-        printf("\n");
+        fprintf(output, "\n");
         ++bufp;
     }
 
+    if (output != stdout)
+        fclose(output);
+
     free(buf);
     exit(EXIT_SUCCESS);
-
-    malformed_error:
-    fprintf(stderr, "%s: malformed bytecode at byte 0x%lx\n", program_name, count);
-    fprintf(stderr, "%s: aborting disassembly\n", program_name);
-    exit(EXIT_FAILURE);
 }
